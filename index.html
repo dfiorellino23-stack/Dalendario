@@ -130,7 +130,9 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-sy
 
 <script>
 /* ====== DATA ====== */
-let data={},curY=2026,curM=2,multiMode=false,multiSel=new Set(),dragColor=null,isDragging=false;
+const _now=new Date(),_iy=_now.getFullYear(),_im=_now.getMonth();
+const _ok=(_iy===2026&&_im>=2)||(_iy===2027);
+let data={},curY=_ok?_iy:2026,curM=_ok?_im:2,multiMode=false,multiSel=new Set(),dragColor=null,isDragging=false;
 let firebaseReady=false,dbRef=null;
 
 /* Try Firebase */
