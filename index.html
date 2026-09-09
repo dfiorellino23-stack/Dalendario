@@ -12,7 +12,21 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--bg:#eef2f7;--sidebar-top:#c9d4e2;--sidebar-bot:#b8c6d9;--cell:#ffffff;--cell-hover:#e8edf5;--text:#2d3748;--text-dim:#718096;--weekend:rgba(100,160,240,.14);--empty:#c8ced8;--accent:#4a7fd7;--border:rgba(0,0,0,.08)}
 html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
-#app{display:flex;height:100%;width:100%}
+
+/* LOGIN */
+#login-screen{display:flex;align-items:center;justify-content:center;height:100%;background:linear-gradient(135deg,#dce3ed,#c5d0e0)}
+.login-box{background:#f8fafc;border-radius:16px;padding:32px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.12);text-align:center}
+.login-box h2{color:var(--accent);margin-bottom:6px;font-size:22px}
+.login-box p{color:var(--text-dim);font-size:13px;margin-bottom:20px}
+.login-box input{width:100%;padding:11px 14px;border-radius:8px;border:1px solid #cbd5e0;background:#fff;color:#2d3748;font-size:14px;outline:none;margin-bottom:10px}
+.login-box input:focus{border-color:var(--accent)}
+.login-box button{width:100%;padding:11px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:all .18s;margin-top:4px}
+.login-box button:hover{filter:brightness(1.1)}
+#login-err{color:#ef4444;font-size:12px;margin-top:8px;display:none}
+#login-remember{display:flex;align-items:center;gap:6px;margin:4px 0 8px;font-size:13px;color:var(--text-dim);cursor:pointer}
+#login-remember input{width:auto;margin:0}
+
+#app{display:flex;height:100%;width:100%;display:none}
 
 /* SIDEBAR */
 #sidebar{width:210px;min-width:210px;background:linear-gradient(180deg,var(--sidebar-top),var(--sidebar-bot));display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:thin;padding:8px 0}
@@ -103,12 +117,27 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-sy
 #mnav{display:flex!important}
 #hdr h2{font-size:15px}
 .cn{font-size:10px}
-.tg{font-size:8.5px}
+.tg{font-size:10px}
 .pp{max-width:95vw;padding:14px}
 }
 </style>
 </head>
 <body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+<div class="login-box">
+<h2>📅 Calendario</h2>
+<p>Accedi per continuare</p>
+<input type="email" id="login-email" placeholder="Email">
+<input type="password" id="login-pass" placeholder="Password">
+<label id="login-remember"><input type="checkbox" id="login-rem-check" checked> Ricordami</label>
+<button onclick="doLogin()">Accedi</button>
+<div id="login-err"></div>
+</div>
+</div>
+
+<!-- CALENDAR -->
 <div id="app">
 <div id="sidebar"></div>
 <div id="main">
@@ -118,6 +147,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-sy
 <h2 id="title"></h2>
 <button id="mbtn" onclick="toggleMulti()" title="Selezione multipla">📋</button>
 <button class="nb" onclick="showBulk()" title="Gestione bulk" style="font-size:16px">⚙️</button>
+<button class="nb" onclick="doLogout()" title="Esci" style="font-size:14px">🚪</button>
 <button class="nb" onclick="go(1)">→</button>
 </div>
 <div id="cw">
@@ -129,13 +159,9 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-sy
 <div id="dh">🎨 Trascina per colorare</div>
 
 <script>
-/* ====== DATA ====== */
-const _now=new Date(),_iy=_now.getFullYear(),_im=_now.getMonth();
-const _ok=(_iy===2026&&_im>=2)||(_iy===2027);
-let data={},curY=_ok?_iy:2026,curM=_ok?_im:2,multiMode=false,multiSel=new Set(),dragColor=null,isDragging=false;
-let firebaseReady=false,dbRef=null;
+/* ====== FIREBASE INIT ====== */
+let firebaseReady=false,dbRef=null,authReady=false;
 
-/* Try Firebase */
 function initFirebase(){
   const s1=document.createElement("script");
   s1.src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js";
@@ -143,20 +169,90 @@ function initFirebase(){
     const s2=document.createElement("script");
     s2.src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js";
     s2.onload=()=>{
-      try{
-        firebase.initializeApp({apiKey:"AIzaSyBc-Xw957LD1T0t3ypSFH2-HM3EMN5oMKs",authDomain:"calendario-fc28a.firebaseapp.com",databaseURL:"https://calendario-fc28a-default-rtdb.europe-west1.firebasedatabase.app",projectId:"calendario-fc28a"});
-        dbRef=firebase.database().ref("cal");
-        dbRef.on("value",snap=>{data=snap.val()||{};render()});
-        firebaseReady=true;
-      }catch(e){console.log("Firebase non disponibile, uso locale")}
+      const s3=document.createElement("script");
+      s3.src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js";
+      s3.onload=()=>{
+        try{
+          firebase.initializeApp({apiKey:"AIzaSyBc-Xw957LD1T0t3ypSFH2-HM3EMN5oMKs",authDomain:"calendario-fc28a.firebaseapp.com",databaseURL:"https://calendario-fc28a-default-rtdb.europe-west1.firebasedatabase.app",projectId:"calendario-fc28a"});
+          dbRef=firebase.database().ref("cal");
+          firebaseReady=true;
+          authReady=true;
+          firebase.auth().onAuthStateChanged(user=>{
+            if(user){showApp()}else{showLogin()}
+          });
+        }catch(e){console.log("Firebase error",e);showLogin()}
+      };
+      s3.onerror=()=>showLogin();
+      document.head.appendChild(s3);
     };
-    s2.onerror=()=>console.log("Firebase offline");
+    s2.onerror=()=>showLogin();
     document.head.appendChild(s2);
   };
-  s1.onerror=()=>console.log("Firebase offline");
+  s1.onerror=()=>showLogin();
   document.head.appendChild(s1);
 }
+
+function showLogin(){
+  document.getElementById("login-screen").style.display="flex";
+  document.getElementById("app").style.display="none";
+}
+function showApp(){
+  document.getElementById("login-screen").style.display="none";
+  document.getElementById("app").style.display="flex";
+  if(firebaseReady&&dbRef){
+    dbRef.on("value",snap=>{data=snap.val()||{};render()});
+  }
+  buildSidebar();render();
+}
+
+window.doLogin=function(){
+  const email=document.getElementById("login-email").value.trim();
+  const pass=document.getElementById("login-pass").value;
+  const errEl=document.getElementById("login-err");
+  errEl.style.display="none";
+  if(!email||!pass){errEl.textContent="Inserisci email e password";errEl.style.display="block";return}
+  if(!authReady){errEl.textContent="Firebase non pronto, riprova";errEl.style.display="block";return}
+  const remember=document.getElementById("login-rem-check").checked;
+  const persistence=remember?firebase.auth.Auth.Persistence.LOCAL:firebase.auth.Auth.Persistence.SESSION;
+  firebase.auth().setPersistence(persistence).then(()=>{
+    return firebase.auth().signInWithEmailAndPassword(email,pass);
+  }).then(()=>{
+    showApp();
+  }).catch(err=>{
+    let msg="Errore di accesso";
+    if(err.code==="auth/user-not-found"||err.code==="auth/wrong-password"||err.code==="auth/invalid-credential")msg="Email o password errati";
+    else if(err.code==="auth/invalid-email")msg="Email non valida";
+    else if(err.code==="auth/too-many-requests")msg="Troppi tentativi, riprova più tardi";
+    errEl.textContent=msg;errEl.style.display="block";
+  });
+}
+
+window.doLogout=function(){
+  if(firebaseReady)firebase.auth().signOut();
+  showLogin();
+}
+
+document.getElementById("login-pass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
+document.getElementById("login-email").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("login-pass").focus()});
+
 initFirebase();
+
+/* ====== DATA ====== */
+const MO=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+const DA=["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
+const COLS=["#f4a4a4","#f0c78a","#f5e6a3","#a3d9b1","#a0cee8","#c4b8e8","#e8b4cb","#8ed5d0","#d4a98a","#c5cdd8","#b0a4d4","#e8d4a0"];
+const TC=["#ff6b6b","#ffa502","#2ed573","#4fc3f7","#a29bfe","#fd79a8","#00cec9","#e17055","#6c5ce7","#fdcb6e","#55efc4","#ff7675"];
+const ALL_MONTHS=[];
+for(let m=2;m<=11;m++)ALL_MONTHS.push([2026,m]);
+for(let y=2027;y<=2030;y++)for(let m=0;m<=11;m++)ALL_MONTHS.push([y,m]);
+
+let data={},curY,curM,multiMode=false,multiSel=new Set(),dragColor=null,isDragging=false;
+(function(){
+  var d=new Date(),y=d.getFullYear(),m=d.getMonth();
+  if((y===2026&&m>=2)||(y>=2027&&y<=2030)){curY=y;curM=m}
+  else if(y>2030){curY=2030;curM=11}
+  else{curY=2026;curM=2}
+})();
 
 function saveKey(k){
   const d=data[k];
@@ -165,24 +261,16 @@ function saveKey(k){
   }
 }
 
-const MO=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-const DA=["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
-const COLS=["#f4a4a4","#f0c78a","#f5e6a3","#a3d9b1","#a0cee8","#c4b8e8","#e8b4cb","#8ed5d0","#d4a98a","#c5cdd8","#b0a4d4","#e8d4a0"];
-const TC=["#ff6b6b","#ffa502","#2ed573","#4fc3f7","#a29bfe","#fd79a8","#00cec9","#e17055","#6c5ce7","#fdcb6e","#55efc4","#ff7675"];
-const ALL_MONTHS=[];
-for(let m=2;m<=11;m++)ALL_MONTHS.push([2026,m]);
-for(let m=0;m<=11;m++)ALL_MONTHS.push([2027,m]);
-
 function buildSidebar(){
   const sb=document.getElementById("sidebar"),mn=document.getElementById("mnav");
   sb.innerHTML="";mn.innerHTML="";
-  [2026,2027].forEach(y=>{
+  [2026,2027,2028,2029,2030].forEach(y=>{
     const yd=document.createElement("div");yd.className="sy";yd.textContent=y;sb.appendChild(yd);
     let s=y===2026?2:0;
     for(let m=s;m<=11;m++){
       const d=document.createElement("div");d.className="sm";d.textContent=MO[m];
       d.dataset.y=y;d.dataset.m=m;d.onclick=()=>{curY=y;curM=m;render()};sb.appendChild(d);
-      const b=document.createElement("div");b.className="mm";b.textContent=MO[m].slice(0,3);
+      const b=document.createElement("div");b.className="mm";b.textContent=MO[m].slice(0,3)+(y>2026?" '"+String(y).slice(2):"");
       b.dataset.y=y;b.dataset.m=m;b.onclick=()=>{curY=y;curM=m;render()};mn.appendChild(b);
     }
   });
@@ -194,8 +282,7 @@ function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g
 
 function render(){
   document.querySelectorAll(".sm,.mm").forEach(el=>{
-    const a=+el.dataset.y===curY&&+el.dataset.m===curM;
-    el.classList.toggle("act",a);
+    el.classList.toggle("act",+el.dataset.y===curY&&+el.dataset.m===curM);
   });
   const am=document.querySelector(".mm.act");
   if(am)am.scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"});
@@ -226,7 +313,9 @@ function render(){
     if(cd.bg)cell.style.background=cd.bg;
     if(multiSel.has(k))cell.classList.add("msel");
 
-    const num=document.createElement("div");num.className="cn";num.textContent=dn;cell.appendChild(num);
+    const num=document.createElement("div");num.className="cn";num.textContent=dn;
+    num.onclick=e=>{e.stopPropagation();if(multiMode){multiSel.has(k)?multiSel.delete(k):multiSel.add(k);render()}else showMenu(k,dn)};
+    cell.appendChild(num);
 
     if(cd.special&&cd.specialText){
       const sl=document.createElement("div");sl.className="sl";sl.textContent=cd.specialText;cell.appendChild(sl);
@@ -322,8 +411,10 @@ window.delPrev=function(i){
 let _eS,_eT,_eC;
 function showExtPop(k,text,color){
   _eS=new Set();_eT=text;_eC=color;
+  const startIdx=ALL_MONTHS.findIndex(([y,m])=>y===curY&&m===curM);
+  const visibleMonths=startIdx>=0?ALL_MONTHS.slice(startIdx):ALL_MONTHS;
   let h=`<h3>Estendi "${esc(text)}"</h3><p style="font-size:12px;color:var(--text-dim);margin-bottom:8px">Seleziona i giorni a cui aggiungere questo tag</p><div class="em">`;
-  ALL_MONTHS.forEach(([y,m])=>{
+  visibleMonths.forEach(([y,m])=>{
     h+=`<div class="emt">${MO[m]} ${y}</div><div class="eg">${DA.map(d=>`<div class="eh">${d[0]}</div>`).join("")}`;
     const f=new Date(y,m,1).getDay(),o=(f===0?6:f-1),dm=new Date(y,m+1,0).getDate();
     for(let i=0;i<o;i++)h+=`<div class="ed ey"></div>`;
@@ -404,25 +495,6 @@ window.appMulti=function(){
   cpop();render();
 }
 
-/* ====== CONFETTI ====== */
-function confetti(){
-  const cs=["#ffd700","#ff6b6b","#4fc3f7","#2ed573","#a29bfe","#fd79a8"];
-  for(let i=0;i<35;i++){
-    const c=document.createElement("div");c.className="cf";
-    c.style.left=Math.random()*100+"vw";c.style.top="-10px";
-    c.style.background=cs[~~(Math.random()*cs.length)];
-    c.style.animationDuration=(1+Math.random())+"s";
-    c.style.animationDelay=(Math.random()*.5)+"s";
-    document.body.appendChild(c);setTimeout(()=>c.remove(),2500);
-  }
-}
-
-/* ====== POPUP ====== */
-function popup(h){cpop();const o=document.createElement("div");o.className="ov";o.id="po";
-  o.innerHTML=`<div class="pp">${h}</div>`;o.onclick=e=>{if(e.target===o)cpop()};document.body.appendChild(o)}
-function cpop(){const o=document.getElementById("po");if(o)o.remove()}
-window.cpop=cpop;window.showTagPop=showTagPop;window.showMenu=showMenu;
-
 /* ====== BULK ====== */
 window.showBulk=function(){
   const colorKeys=Object.keys(data).filter(k=>data[k].bg);
@@ -476,19 +548,36 @@ window.bulkRmAllTags=function(){
   render();showBulk();
 }
 
+/* ====== CONFETTI ====== */
+function confetti(){
+  const cs=["#ffd700","#ff6b6b","#4fc3f7","#2ed573","#a29bfe","#fd79a8"];
+  for(let i=0;i<35;i++){
+    const c=document.createElement("div");c.className="cf";
+    c.style.left=Math.random()*100+"vw";c.style.top="-10px";
+    c.style.background=cs[~~(Math.random()*cs.length)];
+    c.style.animationDuration=(1+Math.random())+"s";
+    c.style.animationDelay=(Math.random()*.5)+"s";
+    document.body.appendChild(c);setTimeout(()=>c.remove(),2500);
+  }
+}
+
+/* ====== POPUP ====== */
+function popup(h){cpop();const o=document.createElement("div");o.className="ov";o.id="po";
+  o.innerHTML=`<div class="pp">${h}</div>`;o.onclick=e=>{if(e.target===o)cpop()};document.body.appendChild(o)}
+function cpop(){const o=document.getElementById("po");if(o)o.remove()}
+window.cpop=cpop;window.showTagPop=showTagPop;window.showMenu=showMenu;
+
 /* ====== NAV ====== */
 window.go=function(dir){
   curM+=dir;
   if(curM>11){curM=0;curY++}if(curM<0){curM=11;curY--}
   if(curY<2026||(curY===2026&&curM<2)){curY=2026;curM=2}
-  if(curY>2027){curY=2027;curM=11}
+  if(curY>2030){curY=2030;curM=11}
   render();
 }
 let tx=0;
 document.getElementById("cw").addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{passive:true});
 document.getElementById("cw").addEventListener("touchend",e=>{const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50)go(dx<0?1:-1)});
-
-buildSidebar();render();
 </script>
 </body>
 </html>
