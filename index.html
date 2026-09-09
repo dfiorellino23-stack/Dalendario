@@ -467,15 +467,58 @@ window.showSpPop=function(k){
   const cd=data[k]||{};
   popup(`<h3>⭐ Giorno Speciale</h3>
   <input type="text" id="si" placeholder="Es: Compleanno, Anniversario..." value="${cd.specialText||""}">
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-dim);margin:6px 0;cursor:pointer"><input type="checkbox" id="si-rec" ${cd.recurring?"checked":""}> Ricorrente ogni anno 🔁</label>
   <div class="br"><button class="pb p2" onclick="cpop()">Annulla</button><button class="pb p1" onclick="appSp('${k}')">Applica</button></div>`);
   const inp=document.getElementById("si");inp.focus();
   inp.addEventListener("keydown",e=>{if(e.key==="Enter")appSp(k)});
 }
 window.appSp=function(k){
   const t=document.getElementById("si").value.trim();
-  if(!data[k])data[k]={};data[k].special=true;data[k].specialText=t;saveKey(k);cpop();render();confetti();
+  const rec=document.getElementById("si-rec").checked;
+  const parts=k.split("-"),origM=parseInt(parts[1]),origD=parseInt(parts[2]);
+  if(rec){
+    for(let y=2026;y<=2030;y++){
+      const rk=`${y}-${String(origM).padStart(2,"0")}-${String(origD).padStart(2,"0")}`;
+      const dim=new Date(y,origM-1+1,0).getDate();
+      if(origD<=dim){
+        if(!data[rk])data[rk]={};
+        data[rk].special=true;data[rk].specialText=t;data[rk].recurring=true;
+        saveKey(rk);
+      }
+    }
+  }else{
+    if(!data[k])data[k]={};data[k].special=true;data[k].specialText=t;delete data[k].recurring;
+    saveKey(k);
+  }
+  cpop();render();confetti();
 }
-window.rmSp=function(k){if(data[k]){delete data[k].special;delete data[k].specialText;saveKey(k);render()}}
+window.rmSp=function(k){
+  if(!data[k])return;
+  if(data[k].recurring){
+    popup(`<h3>Rimuovi giorno speciale</h3>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px">"${esc(data[k].specialText||"")}" è ricorrente. Cosa vuoi fare?</p>
+    <div class="br">
+    <button class="pb p2" onclick="cpop()">Annulla</button>
+    <button class="pb p1" onclick="rmSpSingle('${k}')">Solo questo</button>
+    <button class="pb p3" onclick="rmSpAll('${k}')">Tutti gli anni</button>
+    </div>`);
+  }else{
+    delete data[k].special;delete data[k].specialText;delete data[k].recurring;
+    if(!Object.keys(data[k]).length)delete data[k];saveKey(k);render();
+  }
+}
+window.rmSpSingle=function(k){
+  delete data[k].special;delete data[k].specialText;delete data[k].recurring;
+  if(!Object.keys(data[k]).length)delete data[k];saveKey(k);cpop();render();
+}
+window.rmSpAll=function(k){
+  const parts=k.split("-"),origM=parseInt(parts[1]),origD=parseInt(parts[2]);
+  for(let y=2026;y<=2030;y++){
+    const rk=`${y}-${String(origM).padStart(2,"0")}-${String(origD).padStart(2,"0")}`;
+    if(data[rk]&&data[rk].recurring){delete data[rk].special;delete data[rk].specialText;delete data[rk].recurring;if(!Object.keys(data[rk]).length)delete data[rk];saveKey(rk)}
+  }
+  cpop();render();
+}
 window.rmBg=function(k){if(data[k]){delete data[k].bg;saveKey(k);render()}}
 
 /* ====== MULTI ====== */
