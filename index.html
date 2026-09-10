@@ -308,7 +308,7 @@ function render(){
   const off=(first===0?6:first-1);
   const dim=new Date(curY,curM+1,0).getDate();
   const tot=Math.ceil((off+dim)/7)*7;
-  g.style.gridTemplateRows=window.innerWidth<=700?`repeat(${tot/7},minmax(0,85px))`:`repeat(${tot/7},1fr)`;
+  g.style.gridTemplateRows=window.innerWidth<=700?`repeat(${tot/7},minmax(0,65px))`:`repeat(${tot/7},1fr)`;
 
   const now=new Date(),todayD=(now.getFullYear()===curY&&now.getMonth()===curM)?now.getDate():-1;
 
