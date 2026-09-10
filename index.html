@@ -119,7 +119,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-sy
 #hdr h2{font-size:14px}
 .nb{width:32px;height:32px;font-size:15px}
 #mbtn{width:32px;height:32px;font-size:14px}
-#cw{padding:0 2px 2px}
+#cw{padding:0 8px 2px}
 #dn{font-size:10px;padding:2px 0}
 #gr{gap:1px}
 .cn{font-size:9px;padding:1px 2px}
@@ -308,7 +308,7 @@ function render(){
   const off=(first===0?6:first-1);
   const dim=new Date(curY,curM+1,0).getDate();
   const tot=Math.ceil((off+dim)/7)*7;
-  g.style.gridTemplateRows=window.innerWidth<=700?`repeat(${tot/7},minmax(0,65px))`:`repeat(${tot/7},1fr)`;
+  g.style.gridTemplateRows=window.innerWidth<=700?`repeat(${tot/7},1fr)`:`repeat(${tot/7},1fr)`;
 
   const now=new Date(),todayD=(now.getFullYear()===curY&&now.getMonth()===curM)?now.getDate():-1;
 
